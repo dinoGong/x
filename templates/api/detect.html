@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+    <title>detect</title>
+    <script src="{{ url_for('static', filename='js/jquery-3.2.1.min.js') }}" ></script>
+</head>
+<body>
+    <h1>detect</h1>
+    <input id="select_pic" type="file" >
+    <button id="post" class="ui teal right labeled icon button">
+      <i class="checkmark icon"></i>检测
+    </button>
+    <div id="img">
+    <img id="in_img" style="max-width:100%;">
+    </div>
+    <canvas id="canvas"></canvas>
+  <img id="out_img">
+
+  <script>
+  var base64="";
+  var canvas = document.getElementById('canvas');
+  var context = canvas.getContext('2d');
+  image=document.getElementById('in_img');
+
+  x=0;//
+
+  function draw(){
+
+    $('#in_img').show();
+    $('#canvas').hide();
+    w=$('#in_img').width()
+    h=$('#in_img').height()
+    canvas.width=w;
+    canvas.height=h;
+
+    in_img=document.getElementById('in_img');
+    x=in_img.naturalWidth/w; //比例
+    //w=image.naturalWidth;
+    //h=image.naturalHeight;canvas.width=w;canvas.height=h;
+    context.clearRect(0,0,w,h);
+    $('#in_img').hide();
+    context.drawImage(image,0,0,w,h);
+    $('#canvas').show();
+  }
+  $("#select_pic").change(function () {
+      run(this, function (data) {
+          image.onload = function () {
+               draw();
+          };
+          $('#in_img').attr('src', data);
+          base64=data.split(",")[1];
+      });
+  });
+
+  $("#post").click(function () {
+      $('#post').prop("disabled", true);
+      $.ajax({
+          url: "/api/detect",
+          type: "post",
+          dataType: "json",
+          data: {
+              "img_base64": base64,
+          },
+          async: true,
+          success: function (json) {
+              result=json.result
+              for (i=0;i<result.length;i++) {
+                var j=result[i];
+                var age=(j.age+"").split(".")[0];
+                var beauty=j.beauty;
+                var face_location=j.location;
+                console.log("age:",age);
+                console.log("beauty:",beauty);
+                console.log("location:",face_location);
+                console.log("location-top!!!!!:",face_location.top);
+                //
+                //设置颜色粗细等
+                context.strokeStyle = '#ff0';
+                context.lineWidth="6";
+                context.font = '11px Helvetica';
+                context.fillStyle = "#fff";
+                //绘制框选
+                var left=Math.round(face_location.left/x);
+                var top=Math.round(face_location.top/x);
+                var width=Math.round(face_location.width/x);
+                var height=Math.round(face_location.height/x);
+
+                console.log("left:",left);
+                console.log("top!!!:",top);
+                console.log("width:",width);
+                console.log("height:",height);
+                context.strokeRect(left,top,width,height);
+                context.font="20px Arial"
+                context.fillText("年龄："+age,left,top+height+20);
+                $('#post').prop("disabled", false);
+              }
+          },
+          error: function (json) {
+              console.dir(json);
+              $('#post').prop("disabled", false);
+          }
+      });
+  });
+
+  function run(input_file, get_data) {
+      /*input_file：文件按钮对象*/
+      /*get_data: 转换成功后执行的方法*/
+      if (typeof (FileReader) === 'undefined') {
+      } else {
+          try {
+              /*图片转Base64 核心代码*/
+              var file = input_file.files[0];
+              //这里我们判断下类型如果不是图片就返回 去掉就可以上传任意文件
+              if (!/image\/\w+/.test(file.type)) {
+                  return false;
+              }
+              var reader = new FileReader();
+              reader.onload = function () {
+                  get_data(this.result);
+              }
+              reader.readAsDataURL(file);
+          } catch (e) {
+          }
+      }
+  }
+  </script>
+</body>
+</html>
